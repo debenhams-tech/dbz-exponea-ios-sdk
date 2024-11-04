@@ -2,8 +2,7 @@
 //  ExponeaNotificationService.swift
 //  ExponeaSDKNotifications
 //
-//  Created by Dominik Hadl on 22/11/2018.
-//  Copyright © 2018 Exponea. All rights reserved.
+//  Forked for Debenhams to process FCM notifications.
 //
 
 import Foundation
