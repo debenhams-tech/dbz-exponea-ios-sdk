@@ -36,12 +36,12 @@ public class ExponeaNotificationContentService {
         }
         createActions(notification: notification, context: context)
         // Add image if any
-        if let first = notification.request.content.attachments.first,
-            first.url.startAccessingSecurityScopedResource() {
-            attachmentUrl = first.url
-            self.context = context
-            createImageView(on: viewController.view, with: first.url.path)
-        }
+        if let imageUrlString = notification.request.content.userInfo["image"] as? String,
+        let imageUrl = URL(string: imageUrlString) {
+        attachmentUrl = imageUrl
+        self.context = context
+        createImageView(on: viewController.view, with: imageUrl)
+    }
     }
 
     private func createActions(notification: UNNotification, context: NSExtensionContext?) {
@@ -58,19 +58,19 @@ public class ExponeaNotificationContentService {
                 ExponeaNotificationAction.createNotificationAction(
                     type: action.action,
                     title: action.title,
-                    index: index
+                    index: index,
+                    url: action.url
                 )
             )
         }
     }
 
-    private func createImageView(on view: UIView, with imagePath: String) {
-        let url = URL(fileURLWithPath: imagePath)
-        guard let data = try? Data(contentsOf: url) else {
-            Exponea.logger.log(.warning, message: "Unable to load image contents \(imagePath)")
+    private func createImageView(on view: UIView, with imageUrl: URL) {
+        guard let data = try? Data(contentsOf: imageUrl) else {
+            Exponea.logger.log(.warning, message: "Unable to load image contents \(imageUrl.path)")
             return
         }
-        let imageView = UIImageView(image: UIImage.gif(data: data))
+        let imageView = UIImageView(image: UIImage(data: data))
         imageView.contentMode = .scaleAspectFill
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.addGestureRecognizer(UITapGestureRecognizer(
