@@ -58,8 +58,7 @@ public class ExponeaNotificationContentService {
                 ExponeaNotificationAction.createNotificationAction(
                     type: action.action,
                     title: action.title,
-                    index: index,
-                    url: action.url
+                    index: index
                 )
             )
         }
