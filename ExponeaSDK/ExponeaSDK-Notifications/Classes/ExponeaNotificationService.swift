@@ -35,14 +35,26 @@ public class ExponeaNotificationService {
     }
 
     public func process(request: UNNotificationRequest, contentHandler: @escaping (UNNotificationContent) -> Void) {
-        guard Exponea.isExponeaNotification(userInfo: request.content.userInfo) else {
+        print("ExponeaNotificationService process - request content:")
+        dump(request.content)
+        let mutableContent = (request.content.mutableCopy() as! UNMutableNotificationContent)
+        mutableContent.userInfo = Exponea.convertFcmPayloadToExponeaPayload(fcmPayload: request.content.userInfo)
+        print("ExponeaNotificationService converted userInfo:")
+        dump(mutableContent.userInfo)
+        let convertedRequest = UNNotificationRequest(
+            identifier: request.identifier,
+            content: mutableContent,
+            trigger: request.trigger
+        )
+
+        guard Exponea.isExponeaNotification(userInfo: convertedRequest.content.userInfo) else {
             Exponea.logger.log(.verbose, message: "Skipping non-Exponea notification")
             return
         }
         self.request = request
         self.contentHandler = contentHandler
 
-        if let notificationData = prepareNotificationData(request: request),
+        if let notificationData = prepareNotificationData(request: convertedRequest),
            let appGroup = appGroup {
             trackDeliveredNotification(appGroup: appGroup, notificationData: notificationData)
             createContent(deliveredTimestamp: notificationData.timestamp)
@@ -55,7 +67,8 @@ public class ExponeaNotificationService {
 
         // we failed to track notification
         if !notificationTracked {
-            if let userInfo = (request?.content.mutableCopy() as? UNMutableNotificationContent)?.userInfo {
+            if let fcmUserInfo = (request?.content.mutableCopy() as? UNMutableNotificationContent)?.userInfo {
+            let userInfo = Exponea.convertFcmPayloadToExponeaPayload(fcmPayload: fcmUserInfo)
             let notification = NotificationData.deserialize(
                 attributes: userInfo["attributes"] as? [String: Any] ?? [:],
                 campaignData: userInfo["url_params"] as? [String: Any] ?? [:],
@@ -75,6 +88,7 @@ public class ExponeaNotificationService {
     internal func createContent(deliveredTimestamp: Double?) {
         // Create a mutable content and make sure it works
         bestAttemptContent = (request?.content.mutableCopy() as? UNMutableNotificationContent)
+        bestAttemptContent?.userInfo = Exponea.convertFcmPayloadToExponeaPayload(fcmPayload: request!.content.userInfo)
 
         if deliveredTimestamp != nil {
             var additionalInfo = [String: Any]()
@@ -136,7 +150,7 @@ public class ExponeaNotificationService {
     }
 
     func prepareNotificationData(request: UNNotificationRequest) -> NotificationData? {
-        guard let userInfo = (request.content.mutableCopy() as? UNMutableNotificationContent)?.userInfo else {
+        guard let fcmUserInfo = (request.content.mutableCopy() as? UNMutableNotificationContent)?.userInfo else {
             Exponea.logger.log(
                 .error,
                 message: "Failed to prepare data for delivered push notification:" +
@@ -145,7 +159,7 @@ public class ExponeaNotificationService {
             self.notificationTracked = true
             return nil
         }
-
+        let userInfo = Exponea.convertFcmPayloadToExponeaPayload(fcmPayload: fcmUserInfo)
         var notificationData = NotificationData.deserialize(
             attributes: userInfo["attributes"] as? [String: Any] ?? [:],
             campaignData: userInfo["url_params"] as? [String: Any] ?? [:],
